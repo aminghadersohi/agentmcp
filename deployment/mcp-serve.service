@@ -1,0 +1,50 @@
+[Unit]
+Description=MCP Serve - Agent Manager MCP Server
+Documentation=https://github.com/yourusername/mcp-serve
+After=network.target
+
+[Service]
+Type=simple
+User=mcp
+Group=mcp
+WorkingDirectory=/opt/mcp-serve
+
+# Binary location
+ExecStart=/opt/mcp-serve/mcp-serve \
+    -agents /opt/mcp-serve/agents \
+    -transport sse \
+    -port 8080 \
+    -watch
+
+# Restart policy
+Restart=always
+RestartSec=10s
+
+# Environment variables
+Environment="MCP_AGENTS_DIR=/opt/mcp-serve/agents"
+Environment="MCP_TRANSPORT=sse"
+Environment="MCP_PORT=8080"
+Environment="MCP_WATCH=true"
+
+# Optional: API key from environment file
+# EnvironmentFile=/opt/mcp-serve/mcp-serve.env
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mcp-serve/agents
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=50M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-serve
+
+[Install]
+WantedBy=multi-user.target

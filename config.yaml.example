@@ -1,0 +1,78 @@
+# MCP Serve Configuration
+# Copy this file to config.yaml and customize
+
+# Directory containing agent YAML files
+agents_dir: ./agents
+
+# Server transport mode: stdio or sse
+transport: stdio
+
+# HTTP/SSE server port (only used when transport is 'sse')
+port: 8080
+
+# Optional API key for authentication
+# Leave empty or comment out for no authentication
+# api_key: sk-your-secret-key-here
+
+# Enable file watching for hot reload
+# When enabled, changes to agent files are automatically detected
+watch: false
+
+# Git integration (optional)
+# Automatically pull agent definitions from a Git repository
+git:
+  # Git repository URL
+  # repo: https://github.com/yourusername/agents.git
+
+  # Branch to use
+  # branch: main
+
+  # Pull on startup
+  # pull_on_startup: true
+
+  # Git credentials (if needed for private repos)
+  # username: your-username
+  # token: your-personal-access-token
+
+# Logging configuration
+log:
+  # Log level: debug, info, warn, error
+  level: info
+
+  # Log format: text or json
+  format: text
+
+  # Log file path (empty for stdout only)
+  # file: /var/log/mcp-serve.log
+
+# Cache configuration
+cache:
+  # Enable in-memory caching of agent definitions
+  enabled: true
+
+  # Cache TTL in seconds (0 for no expiration)
+  ttl: 0
+
+# Metrics (optional - for monitoring)
+metrics:
+  # Enable Prometheus metrics endpoint
+  # enabled: false
+
+  # Metrics server port
+  # port: 9090
+
+# Environment-specific settings
+environment: production
+
+# Security settings
+security:
+  # Enable CORS for SSE transport
+  # cors_enabled: false
+
+  # Allowed origins for CORS
+  # cors_origins:
+  #   - https://example.com
+  #   - https://app.example.com
+
+  # Rate limiting (requests per minute)
+  # rate_limit: 100
