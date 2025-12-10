@@ -1,4 +1,6 @@
-// main_test.go - Unit tests for MCP Agent Server
+//go:build !v2
+
+// main_test.go - Unit tests for AgentMCP Server (v1)
 package main
 
 import (
@@ -13,7 +15,7 @@ import (
 
 // setupTestAgents creates temporary agent files for testing
 func setupTestAgents(t *testing.T) (string, func()) {
-	tmpDir, err := os.MkdirTemp("", "mcp-serve-test-*")
+	tmpDir, err := os.MkdirTemp("", "agentmcp-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -261,7 +263,7 @@ func TestSearchAgents(t *testing.T) {
 }
 
 func TestInvalidAgentYAML(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "mcp-serve-test-invalid-*")
+	tmpDir, err := os.MkdirTemp("", "agentmcp-test-invalid-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -285,7 +287,7 @@ func TestInvalidAgentYAML(t *testing.T) {
 }
 
 func TestAgentWithoutName(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "mcp-serve-test-noname-*")
+	tmpDir, err := os.MkdirTemp("", "agentmcp-test-noname-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -313,7 +315,7 @@ prompt: This agent has no name.
 }
 
 func TestEmptyAgentsDirectory(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "mcp-serve-test-empty-*")
+	tmpDir, err := os.MkdirTemp("", "agentmcp-test-empty-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

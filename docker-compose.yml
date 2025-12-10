@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  mcp-serve:
+  agentmcp:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mcp-serve
+    container_name: agentmcp
     restart: unless-stopped
 
     # For stdio mode (default)
@@ -51,7 +51,7 @@ services:
   # Optional: SSE mode with nginx reverse proxy
   # nginx:
   #   image: nginx:alpine
-  #   container_name: mcp-serve-nginx
+  #   container_name: agentmcp-nginx
   #   restart: unless-stopped
   #   ports:
   #     - "80:80"
@@ -60,4 +60,4 @@ services:
   #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
   #     - ./ssl:/etc/nginx/ssl:ro
   #   depends_on:
-  #     - mcp-serve
+  #     - agentmcp

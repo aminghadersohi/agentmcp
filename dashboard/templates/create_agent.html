@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Create Agent - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/agents" style="color: #3498db; text-decoration: none;">← Back to Agents</a>
+    <h2 style="margin-top: 1rem;">Create New Agent</h2>
+
+    {% if error %}
+    <div style="background: #e74c3c; color: white; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
+        Error: {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" style="margin-top: 1.5rem;">
+        <div class="form-group">
+            <label for="skills">Skills (comma-separated)</label>
+            <input type="text" id="skills" name="skills" placeholder="python, testing, pytest" required>
+            <small style="color: #666;">Enter the skills this agent should have</small>
+        </div>
+
+        <div class="form-group">
+            <label for="requirements">Requirements</label>
+            <textarea id="requirements" name="requirements" required placeholder="Describe what this agent should be able to do..."></textarea>
+            <small style="color: #666;">Detailed description of the agent's purpose and capabilities</small>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn success">Generate Agent</button>
+            <a href="/agents" class="btn">Cancel</a>
+        </div>
+    </form>
+
+    <div style="margin-top: 2rem; padding: 1rem; background: #f8f8f8; border-radius: 4px;">
+        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">How it works</h3>
+        <p style="color: #666; font-size: 0.9rem;">
+            The system will use AI to generate a custom agent based on your skills and requirements.
+            This process may take 10-30 seconds. The generated agent will be cached for future use.
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -1,4 +1,6 @@
 // main.go - MCP Agent Server
+//go:build !v2
+
 package main
 
 import (
@@ -321,11 +323,11 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("mcp-serve v%s\n", VERSION)
+		fmt.Printf("agentmcp v%s\n", VERSION)
 		os.Exit(0)
 	}
 
-	log.Printf("[INFO] Starting mcp-serve v%s", VERSION)
+	log.Printf("[INFO] Starting agentmcp v%s", VERSION)
 	log.Printf("[INFO] Agents directory: %s", *agentsDir)
 	log.Printf("[INFO] Transport: %s", *transport)
 
@@ -351,7 +353,7 @@ func main() {
 
 	// Create MCP server
 	mcpServer := server.NewMCPServer(
-		"mcp-serve",
+		"agentmcp",
 		VERSION,
 		server.WithToolCapabilities(true),
 	)

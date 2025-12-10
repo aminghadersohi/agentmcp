@@ -1,0 +1,54 @@
+# Dockerfile.v2 - AgentMCP v2 with full ecosystem support
+# Multi-stage build for minimal final image
+
+# Build stage
+FROM golang:1.23-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /build
+
+# Copy go mod file and download dependencies
+COPY go.mod ./
+RUN go mod download || true
+
+# Copy source
+COPY . .
+
+# Ensure dependencies are resolved
+RUN go mod tidy
+
+# Build with v2 tag
+ARG VERSION=2.0.0
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -tags v2 \
+    -ldflags="-s -w -X main.VERSION=${VERSION}" \
+    -o agentmcp \
+    .
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates curl
+
+# Create non-root user
+RUN addgroup -g 1000 mcp && \
+    adduser -D -u 1000 -G mcp mcp
+
+WORKDIR /app
+
+# Copy binary
+COPY --from=builder /build/agentmcp /app/agentmcp
+
+# Copy migrations (for reference)
+COPY --chown=mcp:mcp migrations/ /app/migrations/
+
+USER mcp
+
+EXPOSE 18080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -s -o /dev/null -w '%{http_code}' --max-time 2 http://localhost:18080/ | grep -qE '(200|404)' || exit 1
+
+ENTRYPOINT ["/app/agentmcp"]
+CMD ["-transport", "sse", "-port", "18080"]

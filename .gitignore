@@ -43,3 +43,9 @@ config.yaml
 
 # Test data
 /testdata/
+
+# Conversation logs
+convo.md
+
+# Claude Code settings (contains local paths)
+.claude/

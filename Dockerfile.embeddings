@@ -1,0 +1,39 @@
+# Dockerfile.embeddings - Embedding service using sentence-transformers
+# Provides /embed endpoint for semantic search
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install curl for healthcheck and pip dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir \
+    flask \
+    gunicorn \
+    sentence-transformers \
+    numpy
+
+# Copy embedding server script
+COPY scripts/embedding_server.py /app/
+
+# Create non-root user
+RUN useradd -m -u 1000 embedder && \
+    chown -R embedder:embedder /app
+
+USER embedder
+
+# Pre-download model on build (optional, speeds up startup)
+ARG EMBEDDING_MODEL=all-MiniLM-L6-v2
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}')"
+
+ENV PORT=18081
+ENV EMBEDDING_MODEL=all-MiniLM-L6-v2
+
+EXPOSE 18081
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:18081/health || exit 1
+
+# Run with gunicorn for production
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:18081", "--timeout", "120", "embedding_server:app"]

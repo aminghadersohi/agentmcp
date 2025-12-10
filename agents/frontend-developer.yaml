@@ -14,14 +14,14 @@ tools:
   - Bash
 
 metadata:
-  author: MCP Serve Team
+  author: AgentMCP Team
   tags:
     - frontend
     - react
     - typescript
     - css
   created: 2025-01-15T10:00:00Z
-  documentation: https://github.com/yourusername/mcp-serve
+  documentation: https://github.com/aminghadersohi/agentmcp
 
 prompt: |
   You are an expert frontend engineer with deep knowledge of modern web development.

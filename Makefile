@@ -1,16 +1,16 @@
-# Makefile for mcp-serve
+# Makefile for agentmcp
 
 .PHONY: help build test clean install run docker fmt lint
 
 # Variables
-BINARY_NAME=mcp-serve
+BINARY_NAME=agentmcp
 VERSION?=1.0.0
 BUILD_DIR=dist
 LDFLAGS=-ldflags="-s -w -X main.VERSION=$(VERSION)"
 
 # Default target
 help:
-	@echo "MCP Serve - Makefile targets:"
+	@echo "AgentMCP - Makefile targets:"
 	@echo "  make build      - Build binary for current platform"
 	@echo "  make build-all  - Build binaries for all platforms"
 	@echo "  make test       - Run tests"

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/governance" style="color: #3498db; text-decoration: none;">← Back to Governance</a>
+    <h2 style="margin-top: 1rem;">Governance Reports</h2>
+
+    {% if reports %}
+    <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+        <thead>
+            <tr style="background: #f8f8f8; text-align: left;">
+                <th style="padding: 0.75rem;">Agent</th>
+                <th style="padding: 0.75rem;">Type</th>
+                <th style="padding: 0.75rem;">Severity</th>
+                <th style="padding: 0.75rem;">Status</th>
+                <th style="padding: 0.75rem;">Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 0.75rem;">{{ report.agent_name }}</td>
+                <td style="padding: 0.75rem;">{{ report.report_type }}</td>
+                <td style="padding: 0.75rem;">
+                    <span class="badge {{ 'danger' if report.severity == 'high' else 'warning' if report.severity == 'medium' else '' }}">
+                        {{ report.severity }}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem;">{{ report.status }}</td>
+                <td style="padding: 0.75rem;">{{ report.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #666; margin-top: 2rem;">No reports found</p>
+    {% endif %}
+</div>
+{% endblock %}

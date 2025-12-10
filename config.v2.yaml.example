@@ -1,0 +1,100 @@
+# MCP Serve v2 Configuration
+# Copy to config.v2.yaml and customize
+
+# ============ Database ============
+database:
+  host: localhost
+  port: 5432
+  name: mcp_serve
+  user: mcp
+  password: ${DB_PASSWORD}  # Set via environment variable
+  max_connections: 20
+
+# ============ Embeddings ============
+embeddings:
+  # Type: "python" (subprocess) or "http" (microservice)
+  type: http
+
+  # HTTP endpoint for embedding service
+  http_endpoint: http://localhost:8081
+
+  # Model for sentence-transformers (if using python type)
+  model: all-MiniLM-L6-v2
+
+  # Embedding dimension (384 for MiniLM)
+  dimension: 384
+
+  # Similarity threshold for matching (0.0 - 1.0)
+  similarity_threshold: 0.85
+
+  # Timeout for embedding operations
+  timeout: 30s
+
+# ============ Agent Generation ============
+generation:
+  # LLM provider: "anthropic" (more coming)
+  provider: anthropic
+
+  # API key (set via environment variable)
+  api_key: ${ANTHROPIC_API_KEY}
+
+  # Model to use for generation
+  model: claude-sonnet-4-20250514
+
+  # Max tokens for generation
+  max_tokens: 4096
+
+  # Timeout for generation
+  timeout: 60s
+
+# ============ Governance ============
+governance:
+  # Enable/disable governance system
+  enabled: true
+
+  # Number of reports before auto-quarantine
+  auto_quarantine_threshold: 3
+
+  # Reputation score below which triggers review
+  reputation_ban_threshold: 10.0
+
+  # System agent names (these cannot be modified)
+  system_agents:
+    - agent-police
+    - agent-judge
+    - agent-executioner
+
+# ============ Server ============
+server:
+  # Transport: stdio or sse
+  transport: stdio
+
+  # HTTP port (for sse transport)
+  port: 8080
+
+  # Optional API key for authentication
+  api_key: ${MCP_API_KEY}
+
+# ============ Logging ============
+logging:
+  # Log level: debug, info, warn, error
+  level: info
+
+  # Log format: text or json
+  format: text
+
+# ============ Cache ============
+cache:
+  # Enable skill request caching
+  enabled: true
+
+  # Cache TTL (0 for no expiration)
+  ttl: 0
+
+# ============ Metrics (optional) ============
+metrics:
+  # Enable Prometheus metrics
+  enabled: false
+
+  # Metrics port
+  port: 9090

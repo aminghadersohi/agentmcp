@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Governance - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Governance System</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">
+        Three-tier governance: Police (monitor), Judge (review), Executioner (enforce)
+    </p>
+
+    {% if stats %}
+    <div class="stats-grid">
+        <div class="stat-box warning">
+            <h3>{{ stats.pending_reports or 0 }}</h3>
+            <p>Pending Reports</p>
+        </div>
+        <div class="stat-box info">
+            <h3>{{ stats.total_reports or 0 }}</h3>
+            <p>Total Reports</p>
+        </div>
+        <div class="stat-box">
+            <h3>{{ stats.quarantined_agents or 0 }}</h3>
+            <p>Quarantined Agents</p>
+        </div>
+        <div class="stat-box danger">
+            <h3>{{ stats.banned_agents or 0 }}</h3>
+            <p>Banned Agents</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>System Agents</h2>
+    <div class="agent-grid">
+        <div class="agent-card">
+            <h3>🚨 agent-police</h3>
+            <p>Monitors agent behavior and creates reports for violations</p>
+            <span class="badge system">system</span>
+            <div style="margin-top: 0.5rem;">
+                <a href="/agents/agent-police" class="btn" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">View</a>
+            </div>
+        </div>
+
+        <div class="agent-card">
+            <h3>⚖️ agent-judge</h3>
+            <p>Reviews reports and makes rulings on agent behavior</p>
+            <span class="badge system">system</span>
+            <div style="margin-top: 0.5rem;">
+                <a href="/agents/agent-judge" class="btn" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">View</a>
+            </div>
+        </div>
+
+        <div class="agent-card">
+            <h3>⚔️ agent-executioner</h3>
+            <p>Enforces permanent bans based on Judge rulings</p>
+            <span class="badge system">system</span>
+            <div style="margin-top: 0.5rem;">
+                <a href="/agents/agent-executioner" class="btn" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">View</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Reports</h2>
+    <p style="color: #666;">Report viewing coming soon...</p>
+</div>
+{% endblock %}

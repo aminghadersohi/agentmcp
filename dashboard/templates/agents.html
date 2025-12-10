@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Agents - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Agent Directory</h2>
+
+    <form action="/agents/search" method="get" style="margin-bottom: 1rem;">
+        <input type="text" name="q" class="search-box" placeholder="Search agents by name, description, or tags...">
+    </form>
+
+    <a href="/agents/create" class="btn success">+ Create New Agent</a>
+</div>
+
+{% if agents %}
+<div class="agent-grid">
+    {% for agent in agents %}
+    <div class="agent-card">
+        <h3>{{ agent.name }}</h3>
+        <p>{{ agent.description or 'No description' }}</p>
+
+        <div style="margin: 0.5rem 0;">
+            {% if agent.tags %}
+                {% for tag in agent.tags %}
+                <span class="badge system">{{ tag }}</span>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <a href="/agents/{{ agent.name }}" class="btn" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">View Details</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <p style="text-align: center; color: #666;">No agents found. Create your first agent!</p>
+</div>
+{% endif %}
+{% endblock %}

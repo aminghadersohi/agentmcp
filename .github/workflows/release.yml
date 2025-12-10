@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   build-and-release:
@@ -22,7 +23,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
+        go-version: '1.23'
 
     - name: Get version from tag
       id: get_version
@@ -42,7 +43,7 @@ jobs:
 
         for platform in "${platforms[@]}"; do
           IFS='/' read -r GOOS GOARCH <<< "$platform"
-          output_name="mcp-serve-${GOOS}-${GOARCH}"
+          output_name="agentmcp-${GOOS}-${GOARCH}"
           if [ "$GOOS" = "windows" ]; then
             output_name="${output_name}.exe"
           fi
@@ -63,7 +64,7 @@ jobs:
       id: release_notes
       run: |
         cat > release_notes.md <<EOF
-        ## MCP Serve v${{ steps.get_version.outputs.VERSION }}
+        ## AgentMCP v${{ steps.get_version.outputs.VERSION }}
 
         ### Installation
 
@@ -71,14 +72,14 @@ jobs:
 
         **Linux (AMD64)**:
         \`\`\`bash
-        curl -L -o mcp-serve https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/mcp-serve-linux-amd64
-        chmod +x mcp-serve
+        curl -L -o agentmcp https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/agentmcp-linux-amd64
+        chmod +x agentmcp
         \`\`\`
 
         **macOS (Apple Silicon)**:
         \`\`\`bash
-        curl -L -o mcp-serve https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/mcp-serve-darwin-arm64
-        chmod +x mcp-serve
+        curl -L -o agentmcp https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.VERSION }}/agentmcp-darwin-arm64
+        chmod +x agentmcp
         \`\`\`
 
         ### Docker
@@ -90,7 +91,7 @@ jobs:
         ### Quick Start
 
         \`\`\`bash
-        ./mcp-serve -agents ./agents -transport stdio
+        ./agentmcp -agents ./agents -transport stdio
         \`\`\`
 
         See the [README](https://github.com/${{ github.repository }}) for full documentation.

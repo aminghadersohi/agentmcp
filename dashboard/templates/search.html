@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Search Results</h2>
+
+    <form action="/agents/search" method="get">
+        <input type="text" name="q" class="search-box" placeholder="Search agents..." value="{{ query }}">
+    </form>
+
+    {% if results %}
+    <p style="color: #666; margin: 1rem 0;">Found {{ results|length }} result(s) for "{{ query }}"</p>
+
+    <div class="agent-grid">
+        {% for agent in results %}
+        <div class="agent-card">
+            <h3>{{ agent.name }}</h3>
+            <p>{{ agent.description or 'No description' }}</p>
+
+            <div style="margin: 0.5rem 0;">
+                {% if agent.tags %}
+                    {% for tag in agent.tags %}
+                    <span class="badge system">{{ tag }}</span>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <a href="/agents/{{ agent.name }}" class="btn" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">View Details</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif query %}
+    <p style="text-align: center; color: #666; margin-top: 2rem;">No results found for "{{ query }}"</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,29 +1,32 @@
-# Multi-stage Dockerfile for mcp-serve
+# Multi-stage Dockerfile for agentmcp
 # Produces a minimal ~20MB final image
 
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /build
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy go mod file
+COPY go.mod ./
 
-# Download dependencies
-RUN go mod download
+# Download dependencies (may fail without go.sum, that's ok)
+RUN go mod download || true
 
 # Copy source code
 COPY . .
+
+# Ensure dependencies are resolved
+RUN go mod tidy
 
 # Build the binary
 # -ldflags="-s -w" strips debug info for smaller binary
 # CGO_ENABLED=0 for static linking
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w -X main.VERSION=${VERSION:-1.0.0}" \
-    -o mcp-serve \
+    -o agentmcp \
     .
 
 # Final stage
@@ -43,7 +46,7 @@ RUN mkdir -p /app/agents && \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /build/mcp-serve /app/mcp-serve
+COPY --from=builder /build/agentmcp /app/agentmcp
 
 # Copy example agents (optional)
 COPY --chown=mcp:mcp agents/*.yaml /app/agents/
@@ -56,8 +59,8 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["/app/mcp-serve", "-version"]
+    CMD ["/app/agentmcp", "-version"]
 
 # Default command (stdio mode)
-ENTRYPOINT ["/app/mcp-serve"]
+ENTRYPOINT ["/app/agentmcp"]
 CMD ["-agents", "/app/agents", "-transport", "stdio"]

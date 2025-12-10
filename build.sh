@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build script for mcp-serve
+# Build script for agentmcp
 # Builds binaries for multiple platforms
 
 set -e
@@ -12,7 +12,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${GREEN}Building mcp-serve v${VERSION}${NC}"
+echo -e "${GREEN}Building agentmcp v${VERSION}${NC}"
 echo "================================"
 echo ""
 
@@ -36,7 +36,7 @@ platforms=(
 for platform in "${platforms[@]}"; do
     IFS='/' read -r GOOS GOARCH <<< "$platform"
 
-    output_name="mcp-serve-${GOOS}-${GOARCH}"
+    output_name="agentmcp-${GOOS}-${GOARCH}"
     if [ "$GOOS" = "windows" ]; then
         output_name="${output_name}.exe"
     fi

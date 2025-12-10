@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{{ name }} - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/agents" style="color: #3498db; text-decoration: none;">← Back to Agents</a>
+    <h2 style="margin-top: 1rem;">{{ name }}</h2>
+
+    {% if agent %}
+    <div style="margin-top: 1.5rem;">
+        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">Details</h3>
+        <pre>{{ agent | tojson_pretty }}</pre>
+    </div>
+    {% else %}
+    <p style="color: #e74c3c;">Agent not found</p>
+    {% endif %}
+
+    {% if stats %}
+    <div style="margin-top: 1.5rem;">
+        <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">Statistics</h3>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <h3>{{ stats.usage_count or 0 }}</h3>
+                <p>Usage Count</p>
+            </div>
+            <div class="stat-box success">
+                <h3>{{ "%.1f"|format(stats.avg_rating or 0) }}</h3>
+                <p>Avg Rating</p>
+            </div>
+            <div class="stat-box info">
+                <h3>{{ "%.0f"|format(stats.reputation_score or 50) }}</h3>
+                <p>Reputation</p>
+            </div>
+            <div class="stat-box">
+                <h3>{{ stats.feedback_count or 0 }}</h3>
+                <p>Feedback Count</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+        <button class="btn success" onclick="submitFeedback()">Submit Feedback</button>
+        <button class="btn danger" onclick="reportAgent()">Report Issue</button>
+    </div>
+</div>
+
+<script>
+function submitFeedback() {
+    const rating = prompt("Rate this agent (1-5):");
+    const comment = prompt("Comment (optional):");
+
+    if (rating) {
+        fetch('/api/feedback', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                agent_name: "{{ name }}",
+                rating: parseInt(rating),
+                comment: comment || "",
+                success: true,
+                submitted_by: "dashboard-user"
+            })
+        }).then(r => r.json()).then(data => {
+            alert(data.success ? "Feedback submitted!" : "Error: " + data.error);
+            location.reload();
+        });
+    }
+}
+
+function reportAgent() {
+    const reason = prompt("Report reason:");
+    if (reason) {
+        fetch('/api/report', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                agent_name: "{{ name }}",
+                report_type: "quality",
+                severity: "medium",
+                description: reason,
+                reported_by: "dashboard-user"
+            })
+        }).then(r => r.json()).then(data => {
+            alert(data.success ? "Report submitted!" : "Error: " + data.error);
+        });
+    }
+}
+</script>
+{% endblock %}

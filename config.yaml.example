@@ -1,4 +1,4 @@
-# MCP Serve Configuration
+# AgentMCP Configuration
 # Copy this file to config.yaml and customize
 
 # Directory containing agent YAML files
@@ -22,7 +22,7 @@ watch: false
 # Automatically pull agent definitions from a Git repository
 git:
   # Git repository URL
-  # repo: https://github.com/yourusername/agents.git
+  # repo: https://github.com/aminghadersohi/agentmcp.git
 
   # Branch to use
   # branch: main
@@ -43,7 +43,7 @@ log:
   format: text
 
   # Log file path (empty for stdout only)
-  # file: /var/log/mcp-serve.log
+  # file: /var/log/agentmcp.log
 
 # Cache configuration
 cache:

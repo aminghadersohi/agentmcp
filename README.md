@@ -1,12 +1,12 @@
-# MCP Serve
+# AgentMCP
 
 > Ultra-lightweight MCP (Model Context Protocol) server for serving AI agent definitions
 
-[![CI](https://github.com/yourusername/mcp-serve/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/mcp-serve/actions/workflows/ci.yml)
+[![CI](https://github.com/aminghadersohi/agentmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/aminghadersohi/agentmcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://go.dev/)
 
-**MCP Serve** is a minimalist MCP server that serves specialized AI agent definitions from YAML files. With a ~10MB memory footprint and zero hosting cost, it's perfect for sharing and managing custom agents across your team.
+**AgentMCP** is a minimalist MCP server that serves specialized AI agent definitions from YAML files. With a ~10MB memory footprint and zero hosting cost, it's perfect for sharing and managing custom agents across your team.
 
 ## Features
 
@@ -25,23 +25,23 @@
 **macOS (Homebrew)**:
 ```bash
 # Coming soon
-brew install mcp-serve
+brew install agentmcp
 ```
 
 **Download Binary**:
 ```bash
 # Linux (AMD64)
-curl -L -o mcp-serve https://github.com/yourusername/mcp-serve/releases/latest/download/mcp-serve-linux-amd64
-chmod +x mcp-serve
+curl -L -o agentmcp https://github.com/aminghadersohi/agentmcp/releases/latest/download/agentmcp-linux-amd64
+chmod +x agentmcp
 
 # macOS (Apple Silicon)
-curl -L -o mcp-serve https://github.com/yourusername/mcp-serve/releases/latest/download/mcp-serve-darwin-arm64
-chmod +x mcp-serve
+curl -L -o agentmcp https://github.com/aminghadersohi/agentmcp/releases/latest/download/agentmcp-darwin-arm64
+chmod +x agentmcp
 ```
 
 **Docker**:
 ```bash
-docker pull ghcr.io/yourusername/mcp-serve:latest
+docker pull ghcr.io/aminghadersohi/agentmcp:latest
 ```
 
 ### Usage
@@ -54,17 +54,17 @@ mkdir agents
 # Add your agent YAML files to agents/
 
 # Run server
-./mcp-serve -agents ./agents -transport stdio
+./agentmcp -agents ./agents -transport stdio
 ```
 
 **Remote (HTTP/SSE)**:
 ```bash
-./mcp-serve -agents ./agents -transport sse -port 8080
+./agentmcp -agents ./agents -transport sse -port 8080
 ```
 
 **Docker**:
 ```bash
-docker run -v $(pwd)/agents:/app/agents ghcr.io/yourusername/mcp-serve:latest
+docker run -v $(pwd)/agents:/app/agents ghcr.io/aminghadersohi/agentmcp:latest
 ```
 
 ## Agent Definition Format
@@ -159,7 +159,7 @@ Search agents by keyword in name, description, or tags.
 ### Command Line Flags
 
 ```bash
-./mcp-serve \
+./agentmcp \
   -agents ./agents \           # Path to agents directory
   -transport stdio \           # Transport: stdio or sse
   -port 8080 \                 # HTTP port (sse mode only)
@@ -189,57 +189,40 @@ watch: true
 
 # Optional Git integration
 git:
-  repo: https://github.com/yourusername/agents.git
+  repo: https://github.com/aminghadersohi/agentmcp.git
   branch: main
   pull_on_startup: true
 ```
 
 ## Deployment
 
-### Docker Compose
+### Docker (Recommended)
 
 ```bash
-docker-compose up -d
+git clone https://github.com/aminghadersohi/agentmcp.git
+cd agentmcp
+./deployment/deploy.sh
 ```
 
-### Systemd (Linux)
+Or manually:
 
 ```bash
-# Copy files
-sudo cp mcp-serve /opt/mcp-serve/
-sudo cp agents/* /opt/mcp-serve/agents/
+docker compose -f docker-compose.v2.yml up -d --build
+```
+
+### Systemd (Linux, without Docker)
+
+```bash
+# Copy binary and agents
+sudo mkdir -p /opt/agentmcp/agents
+sudo cp agentmcp /opt/agentmcp/
+sudo cp agents/*.yaml /opt/agentmcp/agents/
 
 # Install service
-sudo cp deployment/mcp-serve.service /etc/systemd/system/
-sudo systemctl enable mcp-serve
-sudo systemctl start mcp-serve
-```
-
-Or use the automated installer:
-
-```bash
-cd deployment
-sudo ./install.sh
-```
-
-### Oracle Cloud Always Free
-
-Deploy to Oracle Cloud's perpetual free tier (4 ARM cores, 24GB RAM):
-
-```bash
-cd deployment
-INSTANCE_IP=your-instance-ip ./deploy-oracle-cloud.sh
-```
-
-### Fly.io
-
-```bash
-# Install flyctl
-curl -L https://fly.io/install.sh | sh
-
-# Deploy
-fly launch
-fly deploy
+sudo cp deployment/agentmcp.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable agentmcp
+sudo systemctl start agentmcp
 ```
 
 ## Development
@@ -252,9 +235,9 @@ fly deploy
 ### Build from Source
 
 ```bash
-git clone https://github.com/yourusername/mcp-serve.git
-cd mcp-serve
-go build -o mcp-serve .
+git clone https://github.com/aminghadersohi/agentmcp.git
+cd agentmcp
+go build -o agentmcp .
 ```
 
 ### Run Tests
@@ -277,7 +260,7 @@ This creates binaries for:
 ### Project Structure
 
 ```
-mcp-serve/
+agentmcp/
 ├── main.go               # Server implementation
 ├── main_test.go          # Unit tests
 ├── go.mod                # Go dependencies
@@ -287,9 +270,8 @@ mcp-serve/
 │   ├── devops-engineer.yaml
 │   └── code-reviewer.yaml
 ├── deployment/           # Deployment files
-│   ├── mcp-serve.service
-│   ├── install.sh
-│   └── deploy-oracle-cloud.sh
+│   ├── deploy.sh
+│   └── agentmcp.service
 ├── Dockerfile            # Container image
 ├── docker-compose.yml    # Docker Compose config
 ├── build.sh              # Multi-platform build script
@@ -387,8 +369,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [MCP Go SDK](https://github.com/mark3labs/mcp-go)
-- [Documentation](https://github.com/yourusername/mcp-serve/wiki)
-- [Issues](https://github.com/yourusername/mcp-serve/issues)
+- [Documentation](https://github.com/aminghadersohi/agentmcp/wiki)
+- [Issues](https://github.com/aminghadersohi/agentmcp/issues)
 
 ---
 

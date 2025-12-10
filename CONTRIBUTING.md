@@ -1,6 +1,6 @@
-# Contributing to MCP Serve
+# Contributing to AgentMCP
 
-Thank you for your interest in contributing to MCP Serve! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to AgentMCP! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -10,7 +10,7 @@ Be respectful, constructive, and professional. We're building a tool for the com
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/yourusername/mcp-serve/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/aminghadersohi/agentmcp/issues)
 2. If not, create a new issue with:
    - Clear title and description
    - Steps to reproduce
@@ -20,7 +20,7 @@ Be respectful, constructive, and professional. We're building a tool for the com
 
 ### Suggesting Features
 
-1. Check existing [Issues](https://github.com/yourusername/mcp-serve/issues) and [Discussions](https://github.com/yourusername/mcp-serve/discussions)
+1. Check existing [Issues](https://github.com/aminghadersohi/agentmcp/issues) and [Discussions](https://github.com/aminghadersohi/agentmcp/discussions)
 2. Create a new issue with:
    - Clear use case
    - Proposed solution
@@ -31,8 +31,8 @@ Be respectful, constructive, and professional. We're building a tool for the com
 
 1. **Fork and Clone**
    ```bash
-   git clone https://github.com/YOUR-USERNAME/mcp-serve.git
-   cd mcp-serve
+   git clone https://github.com/YOUR-USERNAME/agentmcp.git
+   cd agentmcp
    ```
 
 2. **Create a Branch**
@@ -49,8 +49,8 @@ Be respectful, constructive, and professional. We're building a tool for the com
 4. **Test Your Changes**
    ```bash
    go test -v ./...
-   go build -o mcp-serve .
-   ./mcp-serve -agents ./agents -transport stdio
+   go build -o agentmcp .
+   ./agentmcp -agents ./agents -transport stdio
    ```
 
 5. **Commit**
@@ -83,10 +83,10 @@ Be respectful, constructive, and professional. We're building a tool for the com
 ### Building from Source
 
 ```bash
-git clone https://github.com/yourusername/mcp-serve.git
-cd mcp-serve
+git clone https://github.com/aminghadersohi/agentmcp.git
+cd agentmcp
 go mod download
-go build -o mcp-serve .
+go build -o agentmcp .
 ```
 
 ### Running Tests
@@ -182,7 +182,7 @@ Releases are automated via GitHub Actions:
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/yourusername/mcp-serve/discussions)
+- Open a [Discussion](https://github.com/aminghadersohi/agentmcp/discussions)
 - Ask in issues
 - Check existing documentation
 
@@ -192,4 +192,4 @@ Contributors will be recognized in:
 - GitHub contributors page
 - Release notes (for significant contributions)
 
-Thank you for contributing to MCP Serve!
+Thank you for contributing to AgentMCP!

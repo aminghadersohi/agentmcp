@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MCP Serve{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>System Overview</h2>
+
+    {% if stats %}
+    <div class="stats-grid">
+        <div class="stat-box">
+            <h3>{{ stats.total_agents or 0 }}</h3>
+            <p>Total Agents</p>
+        </div>
+        <div class="stat-box success">
+            <h3>{{ stats.active_agents or 0 }}</h3>
+            <p>Active Agents</p>
+        </div>
+        <div class="stat-box warning">
+            <h3>{{ stats.quarantined_agents or 0 }}</h3>
+            <p>Quarantined</p>
+        </div>
+        <div class="stat-box info">
+            <h3>{{ stats.pending_reports or 0 }}</h3>
+            <p>Pending Reports</p>
+        </div>
+    </div>
+    {% else %}
+    <p>Loading statistics...</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Quick Actions</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <a href="/agents" class="btn">View All Agents</a>
+        <a href="/agents/create" class="btn success">Create New Agent</a>
+        <a href="/governance" class="btn">Governance Panel</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Activity</h2>
+    <p style="color: #666;">Activity tracking coming soon...</p>
+</div>
+{% endblock %}
