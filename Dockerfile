@@ -24,7 +24,9 @@ RUN go mod tidy
 # Build the binary
 # -ldflags="-s -w" strips debug info for smaller binary
 # CGO_ENABLED=0 for static linking
+# -tags v2 to build the v2 version with PostgreSQL support
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -tags v2 \
     -ldflags="-s -w -X main.VERSION=${VERSION:-1.0.0}" \
     -o agentmcp \
     .
@@ -54,6 +56,9 @@ COPY --chown=mcp:mcp agents/*.yaml /app/agents/
 # Switch to non-root user
 USER mcp
 
+# Auto-migrate on startup (can be overridden)
+ENV AUTO_MIGRATE=true
+
 # Expose port for SSE transport
 EXPOSE 8080
 
@@ -63,4 +68,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Default command (stdio mode)
 ENTRYPOINT ["/app/agentmcp"]
-CMD ["-agents", "/app/agents", "-transport", "stdio"]
+CMD ["-transport", "stdio"]

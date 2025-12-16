@@ -69,6 +69,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       MCP_TRANSPORT: sse
       MCP_PORT: 18080
+      AUTO_MIGRATE: "true"
     ports:
       - "18080:18080"
     stdin_open: true

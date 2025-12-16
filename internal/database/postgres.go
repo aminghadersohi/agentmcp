@@ -58,6 +58,11 @@ func (db *DB) Close() {
 	db.pool.Close()
 }
 
+// Pool returns the underlying connection pool (for migrations)
+func (db *DB) Pool() *pgxpool.Pool {
+	return db.pool
+}
+
 // ============ Agent Operations ============
 
 // CreateAgent inserts a new agent

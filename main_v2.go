@@ -19,6 +19,8 @@ import (
 	"github.com/aminghadersohi/agentmcp/internal/generator"
 	"github.com/aminghadersohi/agentmcp/internal/governance"
 	"github.com/aminghadersohi/agentmcp/internal/models"
+	"github.com/aminghadersohi/agentmcp/internal/migrations"
+	sqlmigrations "github.com/aminghadersohi/agentmcp/migrations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -699,6 +701,403 @@ func (s *ServerV2) registerAgent(ctx context.Context, req mcp.CallToolRequest) (
 	return mcp.NewToolResultText(string(result)), nil
 }
 
+// ============ Skills Tools ============
+
+// listSkills lists all available skills
+func (s *ServerV2) listSkills(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	category := getArgString(req, "category")
+	tagsStr := getArgString(req, "tags")
+
+	var tags []string
+	if tagsStr != "" {
+		for _, t := range strings.Split(tagsStr, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	skills, err := s.db.ListSkills(ctx, category, tags)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list skills: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"skills": skills,
+		"count":  len(skills),
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// getSkill retrieves a skill by name
+func (s *ServerV2) getSkill(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name := getArgString(req, "name")
+	if name == "" {
+		return mcp.NewToolResultError("name is required"), nil
+	}
+
+	skill, err := s.db.GetSkill(ctx, name)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get skill: %v", err)), nil
+	}
+	if skill == nil {
+		return mcp.NewToolResultError(fmt.Sprintf("skill not found: %s", name)), nil
+	}
+
+	s.db.IncrementSkillUsage(ctx, skill.ID)
+
+	result, _ := json.MarshalIndent(skill, "", "  ")
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// searchSkills searches skills by keyword
+func (s *ServerV2) searchSkills(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	query := getArgString(req, "query")
+	if query == "" {
+		return mcp.NewToolResultError("query is required"), nil
+	}
+
+	skills, err := s.db.SearchSkills(ctx, query)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"results": skills,
+		"count":   len(skills),
+		"query":   query,
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// findSimilarSkills finds semantically similar skills
+func (s *ServerV2) findSimilarSkills(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	description := getArgString(req, "description")
+	limitF := getArgFloat(req, "limit")
+	threshold := getArgFloat(req, "threshold")
+
+	if description == "" {
+		return mcp.NewToolResultError("description is required"), nil
+	}
+
+	limit := int(limitF)
+	if limit <= 0 {
+		limit = 5
+	}
+	if threshold <= 0 {
+		threshold = 0.15
+	}
+
+	embedding, err := s.embedder.Embed(ctx, description)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("embedding failed: %v", err)), nil
+	}
+
+	similar, err := s.db.FindSimilarSkills(ctx, embedding, limit, threshold)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"similar_skills": similar,
+		"count":          len(similar),
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// useSkill finds the best skill for a task and returns its content
+func (s *ServerV2) useSkill(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	task := getArgString(req, "task")
+	if task == "" {
+		return mcp.NewToolResultError("task description is required"), nil
+	}
+
+	var bestSkill *models.Skill
+	var matchMethod string
+
+	// Try semantic search first
+	if s.embedder != nil {
+		embedding, err := s.embedder.Embed(ctx, task)
+		if err == nil {
+			similar, _ := s.db.FindSimilarSkills(ctx, embedding, 3, 0.25)
+			if len(similar) > 0 {
+				bestSkill, _ = s.db.GetSkillByID(ctx, similar[0].Skill.ID)
+				matchMethod = fmt.Sprintf("semantic (%.0f%% match)", similar[0].Similarity*100)
+			}
+		}
+	}
+
+	// Fallback to keyword search
+	if bestSkill == nil {
+		skills, err := s.db.SearchSkills(ctx, task)
+		if err == nil && len(skills) > 0 {
+			bestSkill, _ = s.db.GetSkillByID(ctx, skills[0].ID)
+			matchMethod = "keyword"
+		}
+	}
+
+	// Multi-word keyword search fallback - try individual words
+	if bestSkill == nil {
+		words := strings.Fields(task)
+		for _, word := range words {
+			if len(word) < 3 {
+				continue // Skip short words like "to", "a", "the"
+			}
+			skills, err := s.db.SearchSkills(ctx, word)
+			if err == nil && len(skills) > 0 {
+				bestSkill, _ = s.db.GetSkillByID(ctx, skills[0].ID)
+				matchMethod = fmt.Sprintf("keyword (matched '%s')", word)
+				break
+			}
+		}
+	}
+
+	if bestSkill == nil {
+		allSkills, _ := s.db.ListSkills(ctx, "", nil)
+		availableNames := make([]string, 0, len(allSkills))
+		for _, s := range allSkills {
+			availableNames = append(availableNames, s.Name)
+		}
+
+		result, _ := json.MarshalIndent(map[string]any{
+			"found":            false,
+			"message":          fmt.Sprintf("No matching skill found for: %s", task),
+			"available_skills": availableNames,
+		}, "", "  ")
+		return mcp.NewToolResultText(string(result)), nil
+	}
+
+	s.db.IncrementSkillUsage(ctx, bestSkill.ID)
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"found":        true,
+		"match_method": matchMethod,
+		"skill": map[string]any{
+			"name":        bestSkill.Name,
+			"description": bestSkill.Description,
+			"category":    bestSkill.Category,
+			"content":     bestSkill.Content,
+			"examples":    bestSkill.Examples,
+			"tags":        bestSkill.Tags,
+		},
+		"instructions": "Use this skill's content as reference documentation for the task.",
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// registerSkill creates a new skill
+func (s *ServerV2) registerSkill(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name := getArgString(req, "name")
+	description := getArgString(req, "description")
+	category := getArgString(req, "category")
+	content := getArgString(req, "content")
+	tagsStr := getArgString(req, "tags")
+	version := getArgString(req, "version")
+
+	if name == "" || description == "" || content == "" {
+		return mcp.NewToolResultError("name, description, and content are required"), nil
+	}
+
+	existing, _ := s.db.GetSkill(ctx, name)
+	if existing != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("skill '%s' already exists", name)), nil
+	}
+
+	var tags []string
+	if tagsStr != "" {
+		for _, t := range strings.Split(tagsStr, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	if version == "" {
+		version = "1.0.0"
+	}
+
+	createdBy := "api"
+	skill := &models.Skill{
+		Name:            name,
+		Version:         version,
+		Description:     description,
+		Category:        category,
+		Content:         content,
+		Tags:            tags,
+		Status:          models.SkillStatusActive,
+		ReputationScore: 50.0,
+		IsSystem:        false,
+		CreatedBy:       &createdBy,
+		Metadata:        map[string]any{},
+	}
+
+	if s.embedder != nil {
+		emb, err := s.embedder.Embed(ctx, name+" "+description+" "+content)
+		if err == nil {
+			skill.Embedding = &emb
+		}
+	}
+
+	if err := s.db.CreateSkill(ctx, skill); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to create skill: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"status":  "created",
+		"skill":   skill.Name,
+		"id":      skill.ID,
+		"message": fmt.Sprintf("Skill '%s' registered successfully", name),
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// ============ Commands Tools ============
+
+// listCommands lists all available commands
+func (s *ServerV2) listCommands(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	category := getArgString(req, "category")
+	tagsStr := getArgString(req, "tags")
+
+	var tags []string
+	if tagsStr != "" {
+		for _, t := range strings.Split(tagsStr, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	commands, err := s.db.ListCommands(ctx, category, tags)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to list commands: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"commands": commands,
+		"count":    len(commands),
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// getCommand retrieves a command by name
+func (s *ServerV2) getCommand(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name := getArgString(req, "name")
+	if name == "" {
+		return mcp.NewToolResultError("name is required"), nil
+	}
+
+	cmd, err := s.db.GetCommand(ctx, name)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get command: %v", err)), nil
+	}
+	if cmd == nil {
+		return mcp.NewToolResultError(fmt.Sprintf("command not found: %s", name)), nil
+	}
+
+	s.db.IncrementCommandUsage(ctx, cmd.ID)
+
+	result, _ := json.MarshalIndent(cmd, "", "  ")
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// searchCommands searches commands by keyword
+func (s *ServerV2) searchCommands(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	query := getArgString(req, "query")
+	if query == "" {
+		return mcp.NewToolResultError("query is required"), nil
+	}
+
+	commands, err := s.db.SearchCommands(ctx, query)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"results": commands,
+		"count":   len(commands),
+		"query":   query,
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
+// registerCommand creates a new command
+func (s *ServerV2) registerCommand(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name := getArgString(req, "name")
+	description := getArgString(req, "description")
+	prompt := getArgString(req, "prompt")
+	category := getArgString(req, "category")
+	tagsStr := getArgString(req, "tags")
+	version := getArgString(req, "version")
+
+	if name == "" || description == "" || prompt == "" {
+		return mcp.NewToolResultError("name, description, and prompt are required"), nil
+	}
+
+	existing, _ := s.db.GetCommand(ctx, name)
+	if existing != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("command '%s' already exists", name)), nil
+	}
+
+	var tags []string
+	if tagsStr != "" {
+		for _, t := range strings.Split(tagsStr, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	if version == "" {
+		version = "1.0.0"
+	}
+
+	createdBy := "api"
+	cmd := &models.Command{
+		Name:            name,
+		Version:         version,
+		Description:     description,
+		Prompt:          prompt,
+		Category:        category,
+		Tags:            tags,
+		Status:          models.CommandStatusActive,
+		ReputationScore: 50.0,
+		IsSystem:        false,
+		CreatedBy:       &createdBy,
+		Metadata:        map[string]any{},
+	}
+
+	if s.embedder != nil {
+		emb, err := s.embedder.Embed(ctx, name+" "+description+" "+prompt)
+		if err == nil {
+			cmd.Embedding = &emb
+		}
+	}
+
+	if err := s.db.CreateCommand(ctx, cmd); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to create command: %v", err)), nil
+	}
+
+	result, _ := json.MarshalIndent(map[string]any{
+		"status":  "created",
+		"command": cmd.Name,
+		"id":      cmd.ID,
+		"message": fmt.Sprintf("Command '%s' registered successfully", name),
+	}, "", "  ")
+
+	return mcp.NewToolResultText(string(result)), nil
+}
+
 // ============ Meta Tools ============
 
 // taskAliases maps common terms to agent-related keywords for better matching
@@ -926,6 +1325,9 @@ func main() {
 	transport := flag.String("transport", getEnvOrDefault("MCP_TRANSPORT", "stdio"), "Transport: stdio or sse")
 	port := flag.String("port", getEnvOrDefault("MCP_PORT", "8080"), "HTTP port")
 
+	migrate := flag.Bool("migrate", getEnvOrDefaultBool("AUTO_MIGRATE", false), "Run database migrations")
+	migrateOnly := flag.Bool("migrate-only", false, "Run migrations and exit")
+
 	version := flag.Bool("version", false, "Print version")
 	flag.Parse()
 
@@ -950,6 +1352,21 @@ func main() {
 	}
 	defer db.Close()
 	log.Println("[INFO] Database connected")
+
+	// Run migrations if requested
+	if *migrate || *migrateOnly {
+		log.Println("[INFO] Running database migrations...")
+		runner := migrations.NewRunner(db.Pool(), sqlmigrations.Files)
+		if err := runner.Run(context.Background()); err != nil {
+			log.Fatalf("[FATAL] Migration failed: %v", err)
+		}
+		log.Println("[INFO] Migrations completed successfully")
+
+		if *migrateOnly {
+			log.Println("[INFO] Migration-only mode, exiting")
+			os.Exit(0)
+		}
+	}
 
 	// Initialize embeddings
 	var embedder embeddings.Engine
@@ -1080,6 +1497,72 @@ func main() {
 		mcp.WithString("version", mcp.Description("Version string (default: 1.0.0)")),
 	), srv.registerAgent)
 
+	// Register skills tools
+	mcpServer.AddTool(mcp.NewTool("list_skills",
+		mcp.WithDescription("List all available skills (packaged knowledge for tools like kubectl, docker, curl, etc)."),
+		mcp.WithString("category", mcp.Description("Filter by category: devops, api, database, cloud, cli")),
+		mcp.WithString("tags", mcp.Description("Comma-separated list of tags to filter by")),
+	), srv.listSkills)
+
+	mcpServer.AddTool(mcp.NewTool("get_skill",
+		mcp.WithDescription("Get a skill's complete content including documentation and examples."),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Name of the skill to retrieve")),
+	), srv.getSkill)
+
+	mcpServer.AddTool(mcp.NewTool("search_skills",
+		mcp.WithDescription("Search skills by keyword."),
+		mcp.WithString("query", mcp.Required(), mcp.Description("Search query string")),
+	), srv.searchSkills)
+
+	mcpServer.AddTool(mcp.NewTool("find_similar_skills",
+		mcp.WithDescription("Find semantically similar skills using AI embeddings."),
+		mcp.WithString("description", mcp.Required(), mcp.Description("Description of what you need help with")),
+		mcp.WithNumber("limit", mcp.Description("Maximum number of results (default 5)")),
+		mcp.WithNumber("threshold", mcp.Description("Similarity threshold 0-1 (default 0.15)")),
+	), srv.findSimilarSkills)
+
+	mcpServer.AddTool(mcp.NewTool("use_skill",
+		mcp.WithDescription("Find the best skill for a task and return its documentation/content."),
+		mcp.WithString("task", mcp.Required(), mcp.Description("Description of what you need to do (e.g., 'use kubectl to debug pods')")),
+	), srv.useSkill)
+
+	mcpServer.AddTool(mcp.NewTool("register_skill",
+		mcp.WithDescription("Register a new skill (packaged knowledge/documentation)."),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Unique name for the skill (e.g., 'kubectl', 'docker-cli')")),
+		mcp.WithString("description", mcp.Required(), mcp.Description("Brief description of what the skill covers")),
+		mcp.WithString("content", mcp.Required(), mcp.Description("The actual documentation/knowledge content")),
+		mcp.WithString("category", mcp.Description("Category: devops, api, database, cloud, cli")),
+		mcp.WithString("tags", mcp.Description("Comma-separated list of tags")),
+		mcp.WithString("version", mcp.Description("Version string (default: 1.0.0)")),
+	), srv.registerSkill)
+
+	// Register commands tools
+	mcpServer.AddTool(mcp.NewTool("list_commands",
+		mcp.WithDescription("List all available slash commands that can be synced to your project."),
+		mcp.WithString("category", mcp.Description("Filter by category: code, git, test, deploy")),
+		mcp.WithString("tags", mcp.Description("Comma-separated list of tags to filter by")),
+	), srv.listCommands)
+
+	mcpServer.AddTool(mcp.NewTool("get_command",
+		mcp.WithDescription("Get a command's complete definition including prompt template."),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Name of the command to retrieve")),
+	), srv.getCommand)
+
+	mcpServer.AddTool(mcp.NewTool("search_commands",
+		mcp.WithDescription("Search commands by keyword."),
+		mcp.WithString("query", mcp.Required(), mcp.Description("Search query string")),
+	), srv.searchCommands)
+
+	mcpServer.AddTool(mcp.NewTool("register_command",
+		mcp.WithDescription("Register a new slash command."),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Unique name for the command (e.g., 'review-pr', 'fix-tests')")),
+		mcp.WithString("description", mcp.Required(), mcp.Description("Brief description of what the command does")),
+		mcp.WithString("prompt", mcp.Required(), mcp.Description("The command's prompt template")),
+		mcp.WithString("category", mcp.Description("Category: code, git, test, deploy")),
+		mcp.WithString("tags", mcp.Description("Comma-separated list of tags")),
+		mcp.WithString("version", mcp.Description("Version string (default: 1.0.0)")),
+	), srv.registerCommand)
+
 	// Register meta tools
 	mcpServer.AddTool(mcp.NewTool("use_agent",
 		mcp.WithDescription("Find and adopt the best agent for a task. Returns the agent's prompt and configuration to use as guidance."),
@@ -1122,6 +1605,13 @@ func getEnvOrDefaultInt(key string, defaultValue int) int {
 		var i int
 		fmt.Sscanf(v, "%d", &i)
 		return i
+	}
+	return defaultValue
+}
+
+func getEnvOrDefaultBool(key string, defaultValue bool) bool {
+	if v := os.Getenv(key); v != "" {
+		return v == "true" || v == "1" || v == "yes"
 	}
 	return defaultValue
 }

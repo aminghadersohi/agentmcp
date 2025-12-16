@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: agentmcp
     restart: unless-stopped
+    networks:
+      - agentmcp-network
 
     # For stdio mode (default)
     stdin_open: true
@@ -23,6 +25,15 @@ services:
       # - MCP_PORT=8080
       # - MCP_API_KEY=your-secret-key
       - MCP_WATCH=false
+      # Database configuration
+      - DB_HOST=agentmcp-postgres
+      - DB_PORT=54320
+      - DB_NAME=mcp_serve
+      - DB_USER=mcp
+      - DB_PASSWORD=mcpserve
+      - EMBEDDING_URL=http://agentmcp-embeddings:18081
+      # Auto-run migrations on startup
+      - AUTO_MIGRATE=true
 
     volumes:
       # Mount agents directory for easy updates
@@ -61,3 +72,7 @@ services:
   #     - ./ssl:/etc/nginx/ssl:ro
   #   depends_on:
   #     - agentmcp
+
+networks:
+  agentmcp-network:
+    external: true

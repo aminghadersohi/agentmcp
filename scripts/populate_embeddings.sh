@@ -1,5 +1,5 @@
 #!/bin/bash
-# Populate embeddings for all agents
+# Populate embeddings for agents, skills, and commands
 # This script connects to the docker containers to generate and store embeddings
 
 set -e
@@ -14,70 +14,98 @@ DB_PORT="${DB_PORT:-54320}"
 echo "Populating embeddings..."
 echo "Embedding service: $EMBEDDING_URL"
 echo "Postgres container: $POSTGRES_CONTAINER"
+echo ""
 
 # Check if embedding service is up
-if ! curl -s "$EMBEDDING_URL/../health" > /dev/null 2>&1; then
-    echo "Warning: Embedding service at $EMBEDDING_URL may not be reachable"
+if ! curl -s "${EMBEDDING_URL%/embed}/health" > /dev/null 2>&1; then
+    echo "Warning: Embedding service may not be reachable"
 fi
 
-# Get all agents without embeddings (or all if --force flag)
+# Force mode regenerates all embeddings
+FORCE_MODE=false
 if [ "$1" == "--force" ]; then
+    FORCE_MODE=true
     echo "Force mode: regenerating all embeddings"
-    query="SELECT id, name, description, COALESCE(skills::text, '{}'), COALESCE(metadata->'tags'::text, '[]') FROM agents;"
-else
-    query="SELECT id, name, description, COALESCE(skills::text, '{}'), COALESCE(metadata->'tags'::text, '[]') FROM agents WHERE embedding IS NULL;"
 fi
 
-agents=$(docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -t -c "$query")
+populate_embeddings() {
+    local table=$1
+    local text_column=$2
+    local where_clause=$3
 
-count=0
-failed=0
+    echo ""
+    echo "=== Populating $table embeddings ==="
 
-while IFS='|' read -r id name description skills tags; do
-    # Trim whitespace
-    id=$(echo "$id" | xargs)
-    name=$(echo "$name" | xargs)
-    description=$(echo "$description" | xargs)
-    skills=$(echo "$skills" | xargs | tr -d '{}' | tr ',' ' ')
-    tags=$(echo "$tags" | xargs | tr -d '[]"' | tr ',' ' ')
-
-    if [ -z "$id" ]; then continue; fi
-
-    echo "Processing: $name"
-
-    # Create rich embedding text combining name, description, skills and tags
-    text="Agent: $name. $description. Skills: $skills $tags"
-
-    # Escape for JSON
-    text=$(echo "$text" | sed 's/"/\\"/g' | tr '\n' ' ')
-
-    # Get embedding from service
-    response=$(curl -s -X POST "$EMBEDDING_URL" \
-        -H "Content-Type: application/json" \
-        -d "{\"texts\": [\"$text\"]}" 2>/dev/null)
-
-    embedding=$(echo "$response" | jq -r '.embeddings[0] | @json' 2>/dev/null)
-
-    if [ "$embedding" != "null" ] && [ -n "$embedding" ] && [ "$embedding" != "" ]; then
-        # Update database
-        docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -c \
-            "UPDATE agents SET embedding = '$embedding' WHERE id = '$id';" > /dev/null
-        echo "  ✓ Updated embedding for $name"
-        ((count++))
+    if [ "$FORCE_MODE" == "true" ]; then
+        query="SELECT id, name, $text_column FROM $table;"
     else
-        echo "  ✗ Failed to get embedding for $name"
-        echo "    Response: $response"
-        ((failed++))
+        query="SELECT id, name, $text_column FROM $table WHERE embedding IS NULL;"
     fi
-done <<< "$agents"
+
+    items=$(docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -t -c "$query" 2>/dev/null)
+
+    local count=0
+    local failed=0
+
+    while IFS='|' read -r id name text; do
+        # Trim whitespace
+        id=$(echo "$id" | xargs)
+        name=$(echo "$name" | xargs)
+        text=$(echo "$text" | xargs | head -c 2000)  # Limit text length
+
+        if [ -z "$id" ]; then continue; fi
+
+        echo "  Processing: $name"
+
+        # Escape for JSON
+        text=$(echo "$text" | sed 's/"/\\"/g' | tr '\n' ' ')
+
+        # Get embedding from service
+        response=$(curl -s -X POST "$EMBEDDING_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"texts\": [\"$text\"]}" 2>/dev/null)
+
+        embedding=$(echo "$response" | jq -r '.embeddings[0] | @json' 2>/dev/null)
+
+        if [ "$embedding" != "null" ] && [ -n "$embedding" ] && [ "$embedding" != "" ]; then
+            # Update database
+            docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -c \
+                "UPDATE $table SET embedding = '$embedding' WHERE id = '$id';" > /dev/null
+            echo "    OK"
+            ((count++))
+        else
+            echo "    FAILED"
+            ((failed++))
+        fi
+    done <<< "$items"
+
+    echo "  $table: Updated $count, Failed $failed"
+}
+
+# Populate agents
+populate_embeddings "agents" "description || ' ' || COALESCE(array_to_string(skills, ' '), '')" ""
+
+# Populate skills
+populate_embeddings "skills" "description || ' ' || COALESCE(content, '')" ""
+
+# Populate commands
+populate_embeddings "commands" "description || ' ' || COALESCE(prompt, '')" ""
 
 echo ""
-echo "Done! Updated: $count, Failed: $failed"
-
-# Show summary
-echo ""
-echo "Summary:"
-docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -c \
-    "SELECT COUNT(*) as with_embedding FROM agents WHERE embedding IS NOT NULL;"
-docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -c \
-    "SELECT COUNT(*) as without_embedding FROM agents WHERE embedding IS NULL;"
+echo "=== Summary ==="
+docker exec "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -p "$DB_PORT" -c "
+    SELECT 'agents' as table_name,
+           COUNT(*) FILTER (WHERE embedding IS NOT NULL) as with_embedding,
+           COUNT(*) FILTER (WHERE embedding IS NULL) as without_embedding
+    FROM agents
+    UNION ALL
+    SELECT 'skills',
+           COUNT(*) FILTER (WHERE embedding IS NOT NULL),
+           COUNT(*) FILTER (WHERE embedding IS NULL)
+    FROM skills
+    UNION ALL
+    SELECT 'commands',
+           COUNT(*) FILTER (WHERE embedding IS NOT NULL),
+           COUNT(*) FILTER (WHERE embedding IS NULL)
+    FROM commands;
+"
