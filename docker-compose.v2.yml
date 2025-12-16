@@ -12,7 +12,6 @@ services:
       PGPORT: 54320
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d:ro
     ports:
       - "54320:54320"
     healthcheck:
