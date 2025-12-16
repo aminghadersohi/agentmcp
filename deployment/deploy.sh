@@ -28,6 +28,16 @@ echo ""
 echo "Waiting for services to start..."
 sleep 10
 
+# Connect to fuchstravels network for nginx proxy access
+echo ""
+echo "Connecting to fuchstravels network..."
+if docker network ls | grep -q fuchstravels_fuchstravels_network; then
+    docker network connect fuchstravels_fuchstravels_network agentmcp 2>/dev/null || true
+    echo "  Connected to fuchstravels_fuchstravels_network"
+else
+    echo "  Warning: fuchstravels network not found (nginx proxy won't work)"
+fi
+
 # Check if this is an existing database that needs schema_migrations seeded
 echo ""
 echo "Checking database migration status..."
